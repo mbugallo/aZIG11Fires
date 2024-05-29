@@ -36,9 +36,12 @@ for (k in levels(AEMETfeat$domain)){
 	AEMETfeat$tmed[ AEMETfeat$tmed==-9999 & AEMETfeat$domain==k] = median_domain$tmed[ median_domain$domain == k ]
 	AEMETfeat$tmin[ AEMETfeat$tmin==-9999 & AEMETfeat$domain==k] = median_domain$tmin[ median_domain$domain == k ]
 	AEMETfeat$velmedia[ AEMETfeat$velmedia==-9999 & AEMETfeat$domain==k] = median_domain$velmedia[ median_domain$domain == k ]
+	AEMETfeat$hrmedia [ AEMETfeat$vhrmedia ==-9999 & AEMETfeat$domain==k] = 
+median_domain$hrmedia [ median_domain$domain == k ]
+	
 }
 
-preproc_feat <- cbind(feat, AEMETfeat[, 5:12] )
+preproc_feat <- cbind(feat, AEMETfeat[, 5:13] )
 
 # Weeks 27 (1st July) to 44 (4th October).
 preproc_feat_Jul_Oct <- preproc_feat[ preproc_feat$semana %in% 27:44, ]

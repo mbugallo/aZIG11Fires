@@ -33,7 +33,7 @@ GroupClassification <- function(data,datacompare,intervals)
    return (result)
 }
  
-PrintSpainMap <- function(pathmap,datos,colors,titlemap,textlegend,eliminarprov)
+PrintSpainMap <- function(pathmap,datos,colors,titlemap,textlegend)
 {
 
    m <- matrix(c(1,1,1,2),2,2)
@@ -61,29 +61,43 @@ PrintSpainMap <- function(pathmap,datos,colors,titlemap,textlegend,eliminarprov)
 pathmap    <- "SPAIN_MAP/esp_prov.shp"
 
 ##############################################################
-# Provinces
-dom = 1:50
-id_prov <- as.numeric(levels(as.factor(read.csv("original_prov_week.csv", 
-                                                header=T, sep='|')$id_provincia)))
-estML <- rep(-1, 50)
-estML[id_prov] <- 1
 
-# Intervals  
-intervals_prop <- c(0, Inf)  
+library(mapSpain)
+library(tidyverse)
 
-# Colors
-colorsprop <- c("gray50", "white" )
+provincias <- esp_get_prov(year='2021')
+
+cpro.index <- as.numeric(levels(as.factor(read.csv("original_prov_week.csv", header=T, sep='|')$id_provincia)))
+
+colors <- rep('No data*', 52); 
+colors[cpro.index] <- 'Peninsular Center'
+colors[c(1, 15, 20, 24, 27, 32, 33, 36, 39, 48, 49)[c(1, 15, 20, 24, 27, 32, 33, 36, 39, 48, 49) %in% cpro.index]] <- 'Northwest Spain' #Norte
+
+colors[c(3, 4, 8, 11, 12, 14, 17, 18, 21, 23, 25, 29, 30, 41, 43, 46)[c(3, 4, 8, 11, 12, 14, 17, 18, 21, 23, 25, 29, 30, 41, 43, 46) %in% cpro.index]] <- 'Mediterranean Coast' # Sur
+
+colors.df <- data.frame('cpro' = 1:52, 'colors' = factor(colors, levels=c('No data*', 'Peninsular Center', 'Mediterranean Coast', 'Northwest Spain')))
+colors.df$cpro <- ifelse(colors.df$cpro < 10, paste0('0', as.factor(colors.df$cpro)), as.factor(colors.df$cpro)) 
+
+provincias <- merge(provincias, colors.df, by='cpro')
+
+ggplot(provincias) +
+  geom_sf(data = esp_get_can_box(), color = "grey70") +
+  geom_sf(data = esp_get_can_provinces(), color = "grey70") +
+  geom_sf(aes(fill = colors), color = "grey70") +
+  labs(title = "") +
+  scale_fill_discrete(' ', type = hcl.colors(4, "Blues")[4:1])+
+  theme_bw() + theme(text = element_text(size=15), legend.position=c(.833,.166))
  
-
-result = GroupClassification(dom,estML,intervals_prop)
-PrintSpainMap(pathmap,result,colorsprop,"",eliminarprov)
 
 
 ##############################################################
 # Prediction Intervals
 results <- read.csv("predBboot.csv",  header=T)
+
+dom <- 1:50
+id_prov <- cpro.index
                                                 
-results32 <- results[ results$semana==28, ]
+results32 <- results[ results$semana==29, ]
 	
 	estML <- rep(NA, 50)
 	estML[ id_prov ] <- 1
@@ -97,13 +111,13 @@ results32 <- results[ results$semana==28, ]
 	intervals_prop <- c(2, 4, 6, 8, 10, Inf)   
 
 	# Colors
-	colorsprop <- c(brewer.pal(5,'Reds'), "gray50")
+	colorsprop <- c(  brewer.pal(7,"GnBu")[c(2,3,4,5,6)] , hcl.colors(4, "Blues")[4])
 	
 	# Legend
 	legend_prop <- expression("< 70 %", " 70 - 80 %", "80 - 85 %", "85 - 95 %", "> 95 %") 
 
 	result = GroupClassification(dom,estML,intervals_prop)
-	PrintSpainMap(pathmap,result,colorsprop,"06/07/2015 - 12/07/2015",legend_prop,eliminarprov)
+	PrintSpainMap(pathmap,result,colorsprop,"13/07/2015 - 19/07/2015",legend_prop)
 
 
 ##############################################################
@@ -120,12 +134,12 @@ estML[ id_prov ] <- RRMSE$RRMSEB[ RRMSE$semana==28 ]
 intervals_prop <- c(3, 5, 10, 15, 90, Inf)
 
 # Colors
-colorsprop <- c(brewer.pal(8,'YlOrRd')[c(1,3,4,5,6)], "gray50")
+colorsprop <- c(brewer.pal(8,'YlOrRd')[c(2,3,4,5,6)], hcl.colors(4, "Blues")[4])
 	
 # Legend
 legend_prop <- expression("under 3 %", " 3 - 5 %", "5 - 10 %", "10 - 15 %", " 15- 25 %") 
 
 result = GroupClassification(dom,estML,intervals_prop)
-PrintSpainMap(pathmap,result,colorsprop,"06/07/2015 - 12/07/2015",legend_prop,eliminarprov)
+PrintSpainMap(pathmap,result,colorsprop,"06/07/2015 - 12/07/2015",legend_prop)
 
 

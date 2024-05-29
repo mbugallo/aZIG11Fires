@@ -43,14 +43,12 @@ I <- 9; J <- 18; K <- 41
 # 1. To model the total burned area:
 #####
 
-modeloA <- glmmTMB(total ~ medios_autobomba + medios_bulldozer + medios_tractores + 
+modeloA <- glmmTMB(total ~ -1+ medios_autobomba + medios_bulldozer + medios_tractores + 
                      aereos_aviones_anfibios + aereos_aviones_carga + 
-                     aereos_helicopteros_transporte + tmax + tmed + 
-                     velmedia + (1|domain), 
-                   
-                   ziformula = ~ sol + tmax + tmed + velmedia + (1|domain),
-                   data = datos,
-                   family = ziGamma(link = "log"))
+                     aereos_helicopteros_transporte + prec + tmax+  tmed  +velmedia+ hrmedia + (1|domain), 
+                
+                   ziformula = ~ -1 + prec + tmax + tmed + velmedia + hrmedia + (1|domain),
+                   data = datos, family = ziGamma(link = "log"))
 
 mu_PIAA <- predict(modeloA, datos, type="response")
 
@@ -62,12 +60,11 @@ datos$promedio <- total/num_incendios
 datos$promedio[is.na(datos$promedio)] <- 0
 datos$est_incendios <- (num_incendios- mean (num_incendios)) / sd(num_incendios- mean (num_incendios))
 
-modeloB <- glmmTMB(promedio ~ est_incendios + dist_1_nearest_buildup + tmax + 
-                     tmed + velmedia + (1|domain), 
+modeloB <- glmmTMB(promedio ~ -1 + est_incendios + dist_1_nearest_buildup + prec + tmax + 
+                     tmed + velmedia + hrmedia + (1|domain), 
                    
-                   ziformula = ~ sol + tmax + tmed + velmedia + (1|domain),
-                   data = datos,
-                   family = ziGamma(link = "log"))
+                   ziformula = ~ -1 +prec + tmax + tmed + velmedia + hrmedia + (1|domain),
+                   data = datos, family = ziGamma(link = "log"))
 
 mu_PIBB <- predict(modeloB, datos, type="response")
 
@@ -78,8 +75,8 @@ mu_PIBB <- predict(modeloB, datos, type="response")
 R = 500 # number of simulations
 nobs <- dim(datos)[1]
 
-nparamA <- 10+5+1+2
-nparamB <- 6+5+1+2
+nparamA <- 11+5+1+2
+nparamB <- 8+5+2
 est_boot_parametrosA <- matrix(ncol=nparamA, nrow=R)
 est_boot_parametrosB <- matrix(ncol=nparamB, nrow=R)
 
@@ -93,14 +90,13 @@ for(r in 1:R){
   
   y_bootA <- simulate(modeloA)[[1]]
   datos$y_bootA <- y_bootA
-  try(modeloAboot <- glmmTMB(y_bootA ~ medios_autobomba + medios_bulldozer + medios_tractores + 
-                               aereos_aviones_anfibios + aereos_aviones_carga + 
-                               aereos_helicopteros_transporte + tmax + tmed + 
-                               velmedia + (1|domain), 
-                             
-                             ziformula = ~ sol + tmax + tmed + velmedia + (1|domain),
-                             data = datos,
-                             family = ziGamma(link = "log")))
+  try(modeloAboot <- glmmTMB(y_bootA ~ -1+ medios_autobomba + medios_bulldozer + medios_tractores + 
+                     aereos_aviones_anfibios + aereos_aviones_carga + 
+                     aereos_helicopteros_transporte + prec + tmax+  tmed  +velmedia+ hrmedia + (1|domain), 
+                
+                   ziformula = ~ -1 + prec + tmax + tmed + velmedia + hrmedia + (1|domain),
+                   data = subset(datos, anhon < 2015),
+                   family = ziGamma(link = "log")))
       
   est_boot_parametrosA[r,]=modeloAboot$sdr$par.fixed    
   mu_PIA <- predict(modeloAboot, datos, type="response")
@@ -109,12 +105,12 @@ for(r in 1:R){
   
   y_bootB <- simulate(modeloB)[[1]]
   datos$y_bootB <- y_bootB
-  try(modeloBboot <- glmmTMB(y_bootB ~ est_incendios + dist_1_nearest_buildup + tmax + 
-                               tmed + velmedia + (1|domain), 
-                             
-                             ziformula = ~ sol + tmax + tmed + velmedia + (1|domain),
-                             data = datos,
-                             family = ziGamma(link = "log")))
+  try(modeloBboot <- glmmTMB(y_bootB ~ -1 + est_incendios + dist_1_nearest_buildup + prec + tmax + 
+                     tmed + velmedia + hrmedia + (1|domain), 
+                   
+                   ziformula = ~ -1 +prec + tmax + tmed + velmedia + hrmedia + (1|domain),
+                   data = subset(datos, anhon < 2015),
+                   family = ziGamma(link = "log")))
   
   est_boot_parametrosB[r,]=modeloBboot$sdr$par.fixed
   mu_PIB <- predict(modeloBboot, datos, type="response")	
@@ -146,34 +142,29 @@ plot_results$Outcome[zero==1] <- '=0'
 
 plot_results <- plot_results[datos$anhon==2015, ]
 
+
 ggplot(data = plot_results, aes(x = 1:dim(plot_results)[1], y = rrmseA)) + 
   geom_point(aes(colour = Outcome), size=3) +
-  scale_colour_manual(values=c("#2F4F4F", "#56B4E9")) + 
-  theme_bw(base_size = 25) +
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+  scale_colour_manual(values=c("#1d427d", "#56B4E9")) + 
+  theme_bw(base_size = 25) + ylim(0,200) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position="top") +
   xlab("Domain") + ylab("RRMSE (%)")
 
 ggplot(data = plot_results, aes(x = 1:dim(plot_results)[1], y = rrmseB)) + 
   geom_point(aes(colour = Outcome), size=3) +
-  scale_colour_manual(values=c("#2F4F4F", "#56B4E9")) + 
-  theme_bw(base_size = 25) +
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+   scale_colour_manual(values=c("#1d427d", "#56B4E9"))  + 
+  theme_bw(base_size = 25) + ylim(0,80) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position="top") +
   xlab("Domain") + ylab("RRMSE (%)")
 
 ggplot(data = plot_results, aes(x = rrmseB, y = rrmseA)) + 
   geom_point(aes(colour = Outcome), size=2.7) +
-  scale_colour_manual(values=c("#2F4F4F", "#56B4E9")) + 
-  theme_bw(base_size = 25) +
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+  scale_colour_manual(values=c("#1d427d", "#56B4E9")) + 
+  theme_bw(base_size = 25) + ylim(0,200) + xlim(0,80) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
         legend.position="top") + xlim(0, 272) +
   xlab("aZIGA (%)") + ylab("aZIGT (%)")
 
-
-round(quantile(plot_results[,1], probs=seq(0,1,by=0.25)), 3) ## RRMSEA 2015
-round(quantile(plot_results[,2], probs=seq(0,1,by=0.25)), 3) ## RRMSEB 2015
 
